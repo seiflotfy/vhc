@@ -3,6 +3,7 @@ package vhc
 import (
 	"errors"
 	"math"
+	"time"
 
 	"math/rand"
 
@@ -69,12 +70,12 @@ type Sketch struct {
 	alpha     float64
 	mAlpha    float64
 	n         uint64
-	skip      uint64
 }
 
 // New returns a VHC sketch with 2^precision registers, where
 // precision must be between 4 and 16
 func New() (*Sketch, error) {
+	rand.Seed(time.Now().UnixNano())
 	p := uint8(22)
 	vp := uint8(9)
 	m := uint64(1 << p)
@@ -87,8 +88,6 @@ func New() (*Sketch, error) {
 		registers: make([]uint8, m),
 		alpha:     alpha(float64(m)),
 		mAlpha:    alpha(float64(s)),
-		n:         rand.Uint64(),
-		skip:      1 + rand.Uint64()*2,
 	}, nil
 }
 
@@ -98,7 +97,7 @@ func (vhc *Sketch) c(f []byte, i uint64) uint64 {
 
 // Add inserts a value into the sketch
 func (vhc *Sketch) Add(f []byte) {
-	q := vhc.n
+	q := rand.Uint64()
 	i := q % vhc.s
 	cfi := vhc.c(f, i)
 
@@ -108,7 +107,6 @@ func (vhc *Sketch) Add(f []byte) {
 	if vhc.registers[cfi] < lambda {
 		vhc.registers[cfi] = lambda
 	}
-	vhc.n += vhc.skip
 }
 
 // Count returns count in stream
@@ -137,7 +135,7 @@ func (vhc *Sketch) Count(f []byte) uint64 {
 	// estimate error
 	N := float64(vhc.totalCardinality())
 	e := s * N / m
-	n := ns - (0 * e)
+	n := ns - e
 
 	// rounding
 	return uint64(n + 0.5)

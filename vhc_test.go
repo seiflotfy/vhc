@@ -2,12 +2,12 @@ package vhc
 
 import (
 	"fmt"
-	"math/rand"
+	rnd "math/rand"
 	"testing"
 	"time"
 )
 
-var src = rand.NewSource(time.Now().UnixNano())
+var src = rnd.NewSource(time.Now().UnixNano())
 
 func estimateError(got, exp uint64) float64 {
 	var delta uint64
@@ -20,9 +20,9 @@ func estimateError(got, exp uint64) float64 {
 }
 
 func TestVHC(t *testing.T) {
-	max := uint64(100000)
+	max := uint64(10000)
 	vhc, _ := New()
-	r := rand.NewZipf(rand.New(rand.NewSource(0)), 1.1, 1.0, max)
+	r := rnd.NewZipf(rnd.New(rnd.NewSource(0)), 1.1, 1.0, max)
 	dict := map[string]uint64{}
 
 	for uint64(len(dict)) < max {
@@ -31,12 +31,12 @@ func TestVHC(t *testing.T) {
 		dict[id]++
 	}
 
-	for i := uint64(0); i < 10; i++ {
+	for i := uint64(0); i < 1000; i++ {
 		id := fmt.Sprintf("flow-%09d", i)
 		res := vhc.Count([]byte(id))
 		exact := dict[string(id)]
 		ratio := 100 * estimateError(res, exact)
-		if ratio > 3 {
+		if ratio > 5 {
 			t.Errorf("%d) VHC Exact %d, got %d which is %.2f%% error", i, exact, res, ratio)
 		}
 	}
