@@ -1,22 +1,13 @@
 package vhc
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 var src = rand.NewSource(time.Now().UnixNano())
-
-func RandStringBytesMaskImprSrc(n uint32) string {
-	b := make([]byte, n)
-	for i := uint32(0); i < n; i++ {
-		b[i] = letterBytes[rand.Int()%len(letterBytes)]
-	}
-	return string(b)
-}
 
 func estimateError(got, exp uint64) float64 {
 	var delta uint64
@@ -29,30 +20,24 @@ func estimateError(got, exp uint64) float64 {
 }
 
 func TestVHLL(t *testing.T) {
-	max := uint64(1000000)
+	max := uint64(100000)
 	vhll, _ := New()
-	r := rand.NewZipf(rand.New(rand.NewSource(0)), 1.1, 1.1, max)
+	r := rand.NewZipf(rand.New(rand.NewSource(0)), 1.1, 1.0, max)
 	dict := map[string]uint64{}
 
-	for i := 0; len(dict) < 100; i++ {
-		dict[RandStringBytesMaskImprSrc(10)] = max - r.Uint64()
+	for uint64(len(dict)) < max {
+		id := fmt.Sprintf("flow-%d", r.Uint64())
+		vhll.Add([]byte(id))
+		dict[id]++
 	}
 
-	for k, v := range dict {
-		for i := 0; i < int(v); i++ {
-			vhll.Add([]byte(k))
-		}
-	}
-
-	i := 0
-	for k, exact := range dict {
-		i++
-		res := uint64(vhll.Count([]byte(k)))
+	for i := uint64(0); i < 100; i++ {
+		id := fmt.Sprintf("flow-%d", i)
+		res := vhll.Count([]byte(id))
+		exact := dict[string(id)]
 		ratio := 100 * estimateError(res, exact)
-
-		if ratio > 5 {
+		if ratio > 3 {
 			t.Errorf("%d) VHLL Exact %d, got %d which is %.2f%% error", i, exact, res, ratio)
 		}
-
 	}
 }
