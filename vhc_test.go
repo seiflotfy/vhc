@@ -4,8 +4,6 @@ import (
 	"math/rand"
 	"testing"
 	"time"
-
-	"github.com/seiflotfy/count-min-log"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -32,8 +30,7 @@ func estimateError(got, exp uint64) float64 {
 
 func TestVHLL(t *testing.T) {
 	max := uint64(1000000)
-	vhll, _ := NewCounter()
-	cm, _ := cml.NewForCapacity16(2 * *20)
+	vhll, _ := New()
 	r := rand.NewZipf(rand.New(rand.NewSource(0)), 1.1, 1.1, max)
 	dict := map[string]uint64{}
 

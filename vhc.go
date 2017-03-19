@@ -59,8 +59,8 @@ func totalFillRate(registers []uint8) float64 {
 	return 1 - zeros(registers)/float64(len(registers))
 }
 
-// VLogLogBeta is a sketch for cardinality estimation based on LogLog counting
-type VLogLogBeta struct {
+// Sketch is a sketch for cardinality estimation based on LogLog counting
+type Sketch struct {
 	registers []uint8
 	m         uint64
 	s         uint64
@@ -72,14 +72,14 @@ type VLogLogBeta struct {
 	skip      uint64
 }
 
-// NewCounter returns a VLogLogBeta sketch with 2^precision registers, where
+// New returns a VHC sketch with 2^precision registers, where
 // precision must be between 4 and 16
-func NewCounter() (*VLogLogBeta, error) {
-	p := uint8(20)
+func New() (*Sketch, error) {
+	p := uint8(22)
 	vp := uint8(9)
 	m := uint64(1 << p)
 	s := uint64(1 << vp)
-	return &VLogLogBeta{
+	return &Sketch{
 		m:         m,
 		s:         s,
 		p:         p,
@@ -92,36 +92,36 @@ func NewCounter() (*VLogLogBeta, error) {
 	}, nil
 }
 
-func (llb *VLogLogBeta) c(f []byte, i uint64) uint64 {
-	return metro.Hash64(f, i) % llb.m
+func (vhc *Sketch) c(f []byte, i uint64) uint64 {
+	return metro.Hash64(f, 1337*i) % vhc.m
 }
 
 // Add inserts a value into the sketch
-func (llb *VLogLogBeta) Add(f []byte) {
-	q := llb.n
-	i := q % llb.s
-	cfi := llb.c(f, i)
+func (vhc *Sketch) Add(f []byte) {
+	q := vhc.n
+	i := q % vhc.s
+	cfi := vhc.c(f, i)
 
 	q1 := rand.Uint64()
 	lambda := rho(q1, 32)
 
-	if llb.registers[cfi] < lambda {
-		llb.registers[cfi] = lambda
+	if vhc.registers[cfi] < lambda {
+		vhc.registers[cfi] = lambda
 	}
-	llb.n += llb.skip
+	vhc.n += vhc.skip
 }
 
 // Count returns count in stream
-func (llb *VLogLogBeta) Count(f []byte) uint64 {
-	cf := make([]uint8, llb.s, llb.s)
+func (vhc *Sketch) Count(f []byte) uint64 {
+	cf := make([]uint8, vhc.s, vhc.s)
 	for i := range cf {
-		cfi := llb.c(f, uint64(i))
-		cf[i] = llb.registers[cfi]
+		cfi := vhc.c(f, uint64(i))
+		cf[i] = vhc.registers[cfi]
 	}
 
 	sum := 0.0
-	s := float64(llb.s)
-	m := float64(llb.m)
+	s := float64(vhc.s)
+	m := float64(vhc.m)
 	ez := 0.0
 
 	for _, val := range cf {
@@ -132,37 +132,37 @@ func (llb *VLogLogBeta) Count(f []byte) uint64 {
 	}
 
 	beta := beta(ez)
-	ns := (llb.mAlpha * s * (s - ez) / (beta + sum))
+	ns := (vhc.mAlpha * s * (s - ez) / (beta + sum))
 
 	// estimate error
-	N := float64(llb.totalCardinality())
+	N := float64(vhc.totalCardinality())
 	e := s * N / m
-	n := ns - e
+	n := ns - (0 * e)
 
 	// rounding
 	return uint64(n + 0.5)
 }
 
-// Merge takes another VLogLogBeta and combines it with llb one, making llb the union of both.
-func (llb *VLogLogBeta) Merge(other *VLogLogBeta) error {
-	if llb.p != llb.p {
+// Merge takes another Sketch and combines it with vhc one, making vhc the union of both.
+func (vhc *Sketch) Merge(other *Sketch) error {
+	if vhc.p != vhc.p {
 		return errors.New("precisions must be equal")
 	}
-	for i, v := range llb.registers {
+	for i, v := range vhc.registers {
 		if v < other.registers[i] {
-			llb.registers[i] = other.registers[i]
+			vhc.registers[i] = other.registers[i]
 		}
 	}
 	return nil
 }
 
-func (llb *VLogLogBeta) totalCardinality() uint64 {
+func (vhc *Sketch) totalCardinality() uint64 {
 	sum := 0.0
-	m := float64(llb.m)
-	for _, val := range llb.registers {
+	m := float64(vhc.m)
+	for _, val := range vhc.registers {
 		sum += 1.0 / math.Pow(2.0, float64(val))
 	}
-	ez := zeros(llb.registers)
+	ez := zeros(vhc.registers)
 	beta := beta(ez)
-	return uint64(llb.alpha * m * (m - ez) / (beta + sum))
+	return uint64(vhc.alpha * m * (m - ez) / (beta + sum))
 }
