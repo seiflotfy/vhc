@@ -73,11 +73,17 @@ type Sketch struct {
 }
 
 // New returns a VHC sketch with 2^precision registers, where
-// precision must be between 4 and 16
-func New() (*Sketch, error) {
+// precision must be >= 9 and 8 <= vPrecision <= 10
+func New(precision, vPrecision uint8) (*Sketch, error) {
+	if precision < 9 {
+		return nil, errors.New("precision needs to be >= 9")
+	}
+	if vPrecision < 8 || vPrecision > 10 {
+		return nil, errors.New("virtual precision needs to be >= 8 and <= 10")
+	}
 	rand.Seed(time.Now().UnixNano())
-	p := uint8(22)
-	vp := uint8(9)
+	p := precision
+	vp := vPrecision
 	m := uint64(1 << p)
 	s := uint64(1 << vp)
 	return &Sketch{

@@ -21,7 +21,7 @@ func estimateError(got, exp uint64) float64 {
 
 func TestVHC(t *testing.T) {
 	max := uint64(10000)
-	vhc, _ := New()
+	vhc, _ := New(20, 8)
 	r := rnd.NewZipf(rnd.New(rnd.NewSource(0)), 1.1, 1.0, max)
 	dict := map[string]uint64{}
 
